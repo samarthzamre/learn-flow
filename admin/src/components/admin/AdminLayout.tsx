@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Link, useLocation, Outlet } from "react-router-dom";
 import { motion } from "framer-motion";
-import { 
-  LayoutDashboard, 
-  FileText, 
-  Tags, 
-  BarChart3, 
-  Sparkles, 
+import {
+  LayoutDashboard,
+  FileText,
+  Tags,
+  BarChart3,
+  Sparkles,
   Settings,
   Menu,
   X,
@@ -32,19 +32,23 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     <nav className="space-y-1">
       {adminNavItems.map((item) => {
         const Icon = item.icon;
-        const isActive = location.pathname === item.href || 
-          (item.href !== "/admin" && location.pathname.startsWith(item.href));
-        
+        // Get the path without /admin prefix for comparison
+        const nonPrefixedPath = item.href.replace('/admin', '') || '/';
+        const isActive =
+          location.pathname === item.href ||
+          location.pathname === nonPrefixedPath ||
+          (item.href !== "/admin" && location.pathname.startsWith(item.href)) ||
+          (nonPrefixedPath !== "/" && location.pathname.startsWith(nonPrefixedPath));
+
         return (
           <Link
             key={item.href}
             to={item.href}
             onClick={() => setMobileMenuOpen(false)}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-              isActive
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${isActive
                 ? "bg-primary text-primary-foreground shadow-md"
                 : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-            }`}
+              }`}
           >
             <Icon className="w-4 h-4" />
             {item.label}
