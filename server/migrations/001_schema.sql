@@ -1,0 +1,88 @@
+-- Migration: 001_schema.sql
+-- Description: Creates initial tables for Insight Spark
+
+-- Disable foreign key checks for table operations
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- Drop tables if they exist (DISABLED FOR PRODUCTION SAFETY - UNCOMMENT IF RESETTING)
+-- DROP TABLE IF EXISTS topic_infographic_items;
+-- DROP TABLE IF EXISTS topic_cards;
+-- DROP TABLE IF EXISTS topic_articles;
+-- DROP TABLE IF EXISTS topics;
+-- DROP TABLE IF EXISTS categories;
+-- DROP TABLE IF EXISTS settings;
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+-- Categories Table
+CREATE TABLE IF NOT EXISTS categories (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  slug VARCHAR(100) NOT NULL UNIQUE,
+  description VARCHAR(255) DEFAULT '',
+  color VARCHAR(20) DEFAULT '#6366F1',
+  icon VARCHAR(50) DEFAULT 'Cpu',
+  visible TINYINT(1) DEFAULT 1,
+  sort_order INT DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Topics Table
+CREATE TABLE IF NOT EXISTS topics (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  summary TEXT,
+  category_id INT NOT NULL,
+  difficulty ENUM('Beginner', 'Intermediate', 'Advanced') DEFAULT 'Beginner',
+  status ENUM('Draft', 'Published') DEFAULT 'Draft',
+  trend_score INT DEFAULT 0,
+  has_infographic TINYINT(1) DEFAULT 0,
+  has_article TINYINT(1) DEFAULT 0,
+  views INT DEFAULT 0,
+  sidebar_content JSON DEFAULT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Topic Cards Table
+CREATE TABLE IF NOT EXISTS topic_cards (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  topic_id INT NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  content TEXT NOT NULL,
+  sort_order INT DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Topic Infographic Items Table
+CREATE TABLE IF NOT EXISTS topic_infographic_items (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  topic_id INT NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  stat VARCHAR(100) DEFAULT '',
+  description TEXT,
+  sort_order INT DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Topic Articles Table
+CREATE TABLE IF NOT EXISTS topic_articles (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  topic_id INT NOT NULL UNIQUE,
+  content LONGTEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Settings Table
+CREATE TABLE IF NOT EXISTS settings (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  setting_key VARCHAR(100) NOT NULL UNIQUE,
+  setting_value TEXT,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

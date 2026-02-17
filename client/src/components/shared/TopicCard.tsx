@@ -75,13 +75,13 @@ export function TopicCard({ topic, showTrendScore }: TopicCardProps) {
 
         {/* Content Type Indicators */}
         <div className="flex items-center gap-3 mt-4 pt-4 border-t border-border">
-          {topic.hasInfographic && (
+          {!!topic.hasInfographic && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <BarChart3 className="w-3.5 h-3.5" />
               <span>Infographic</span>
             </div>
           )}
-          {topic.hasArticle && (
+          {!!topic.hasArticle && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <FileText className="w-3.5 h-3.5" />
               <span>Article</span>

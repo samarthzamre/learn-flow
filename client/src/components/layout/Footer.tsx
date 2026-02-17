@@ -10,7 +10,6 @@ const footerLinks = {
   Company: [
     { href: "/about", label: "About" },
     { href: "/contact", label: "Contact" },
-    { href: "/careers", label: "Careers" },
   ],
   Legal: [
     { href: "/privacy", label: "Privacy Policy" },
@@ -19,7 +18,11 @@ const footerLinks = {
   ],
 };
 
+import { useSettings } from "@/contexts/SettingsContext";
+
 export function Footer() {
+  const { settings } = useSettings();
+
   return (
     <footer className="border-t border-border bg-secondary/30">
       <div className="container mx-auto px-4 py-12">
@@ -30,10 +33,12 @@ export function Footer() {
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
                 <Sparkles className="w-5 h-5 text-primary-foreground" />
               </div>
-              <span className="font-display font-bold text-xl">LearnFlow</span>
+              <span className="font-display font-bold text-xl">
+                {settings?.siteName || "LearnFlow"}
+              </span>
             </Link>
             <p className="text-muted-foreground text-sm mb-4">
-              Learn anything visually. Faster. Smarter.
+              {settings?.siteDescription || "Learn anything visually. Faster. Smarter."}
             </p>
             <div className="flex items-center gap-3">
               <a href="#" className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
@@ -70,7 +75,7 @@ export function Footer() {
 
         <div className="border-t border-border mt-12 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-muted-foreground text-sm">
-            © 2024 LearnFlow. All rights reserved.
+            © {new Date().getFullYear()} {settings?.siteName || "LearnFlow"}. All rights reserved.
           </p>
           <p className="text-muted-foreground text-sm">
             Made with ❤️ for learners everywhere

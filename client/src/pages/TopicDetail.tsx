@@ -1,476 +1,381 @@
-import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Navbar } from "@/components/layout/Navbar";
-import { Footer } from "@/components/layout/Footer";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
 import {
   ArrowLeft,
-  Bookmark,
+  BookOpen,
+  BarChart3,
   Share2,
-  Layers,
-  Image,
-  FileText,
-  ChevronLeft,
   ChevronRight,
-  Lightbulb,
-  CheckCircle2,
+  ChevronLeft,
   AlertCircle,
-  Check,
-  Download,
+  CheckCircle2,
+  Lightbulb,
   ZoomIn,
+  ZoomOut,
+  Move
 } from "lucide-react";
+import { Link, useParams } from "react-router-dom";
+import { Navbar } from "@/components/layout/Navbar";
+import { Footer } from "@/components/layout/Footer";
+import { useQuery } from "@tanstack/react-query";
+import { getTopic } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
-// Mock data - in real app this would come from API
-const topicData = {
-  id: "1",
-  title: "Large Language Models",
-  summary: "How GPT, Claude and other LLMs are reshaping AI and transforming the way we interact with technology",
-  category: "AI & ML",
-  difficulty: "Intermediate",
-  image: "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&h=400&fit=crop&auto=format",
-  cards: [
-    {
-      id: 1,
-      title: "What are LLMs?",
-      content: "Large Language Models are AI systems trained on massive text datasets. They learn patterns in language to understand and generate human-like text. Think of them as super-smart autocomplete that can write essays, code, and even poetry.",
-      icon: Lightbulb,
-      color: "from-blue-500 to-cyan-500",
-    },
-    {
-      id: 2,
-      title: "How Do They Learn?",
-      content: "LLMs are trained by reading billions of web pages, books, and articles. They predict what word comes next, over and over, billions of times. This helps them understand context, grammar, facts, and even reasoning patterns.",
-      icon: CheckCircle2,
-      color: "from-emerald-500 to-teal-500",
-    },
-    {
-      id: 3,
-      title: "Popular Examples",
-      content: "ChatGPT and GPT-4 by OpenAI are the most famous. Claude by Anthropic focuses on being helpful and safe. Google's Gemini and Meta's LLaMA are other major players. Each has unique strengths and use cases.",
-      icon: Layers,
-      color: "from-purple-500 to-pink-500",
-    },
-    {
-      id: 4,
-      title: "Watch Out For",
-      content: "LLMs can 'hallucinate' - confidently stating false information. They have knowledge cutoff dates and can't access real-time data. Always verify important facts and don't rely on them for critical decisions alone.",
-      icon: AlertCircle,
-      color: "from-orange-500 to-red-500",
-    },
-    {
-      id: 5,
-      title: "Real-World Uses",
-      content: "Content writing and editing, code generation and debugging, customer service chatbots, language translation, research assistance, and creative brainstorming are just the beginning of what LLMs can do today.",
-      icon: CheckCircle2,
-      color: "from-indigo-500 to-blue-500",
-    },
-  ],
-  keyTerms: ["Transformer", "Token", "Parameters", "Fine-tuning", "Prompt Engineering"],
-  useCases: ["Chatbots & Virtual Assistants", "Code Generation Tools", "Content Creation", "Research & Analysis"],
-  commonMistakes: [
-    "Trusting outputs without fact-checking",
-    "Ignoring context window limits", 
-    "Not understanding token costs",
-    "Over-relying on single responses"
-  ],
-  infographic: {
-    title: "How Large Language Models Work",
-    sections: [
-      {
-        title: "1. Training Data",
-        description: "LLMs learn from billions of text examples from books, websites, and documents.",
-        stat: "175B+ parameters",
-      },
-      {
-        title: "2. Transformer Architecture",
-        description: "Uses attention mechanisms to understand relationships between words in context.",
-        stat: "96 attention layers",
-      },
-      {
-        title: "3. Token Prediction",
-        description: "Predicts the most likely next word based on all previous context.",
-        stat: "32K token context",
-      },
-      {
-        title: "4. Fine-Tuning",
-        description: "Models are refined with human feedback to improve helpfulness and safety.",
-        stat: "RLHF trained",
-      },
-    ],
-    keyStats: [
-      { label: "Training Cost", value: "$100M+" },
-      { label: "Parameters", value: "175B-1.8T" },
-      { label: "Context Window", value: "4K-200K" },
-      { label: "Languages", value: "100+" },
-    ],
-  },
+const difficultyColors: Record<string, string> = {
+  Beginner: "bg-emerald-500/10 text-emerald-600",
+  Intermediate: "bg-amber-500/10 text-amber-600",
+  Advanced: "bg-rose-500/10 text-rose-600",
 };
 
-const TopicDetail = () => {
-  const { id } = useParams();
-  const [activeCardIndex, setActiveCardIndex] = useState(0);
-  const [viewMode, setViewMode] = useState<"cards" | "infographic" | "article">("cards");
-  const [isBookmarked, setIsBookmarked] = useState(false);
+const InteractiveImage = ({ src, alt }: { src: string; alt: string }) => {
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const currentCard = topicData.cards[activeCardIndex];
-  const progress = ((activeCardIndex + 1) / topicData.cards.length) * 100;
-
-  const nextCard = () => {
-    if (activeCardIndex < topicData.cards.length - 1) {
-      setActiveCardIndex((prev) => prev + 1);
-    }
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY * -0.001;
+    const newScale = Math.min(Math.max(0.5, scale + delta), 4);
+    setScale(newScale);
   };
 
-  const prevCard = () => {
-    if (activeCardIndex > 0) {
-      setActiveCardIndex((prev) => prev - 1);
-    }
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
   };
 
-  const handleBookmark = () => {
-    setIsBookmarked(!isBookmarked);
-    toast.success(isBookmarked ? "Removed from bookmarks" : "Added to bookmarks", {
-      description: isBookmarked ? "Topic removed from your saved list" : "You can find this in your bookmarks",
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    setPosition({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y
     });
   };
 
-  const handleShare = async () => {
-    const shareData = {
-      title: topicData.title,
-      text: topicData.summary,
-      url: window.location.href,
-    };
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      setIsDragging(true);
+      const touch = e.touches[0];
+      setDragStart({ x: touch.clientX - position.x, y: touch.clientY - position.y });
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging || e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    setPosition({
+      x: touch.clientX - dragStart.x,
+      y: touch.clientY - dragStart.y
+    });
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+  };
+
+  const zoomIn = () => setScale(s => Math.min(s + 0.5, 4));
+  const zoomOut = () => setScale(s => Math.max(0.5, s - 0.5));
+
+  return (
+    <div
+      className="w-full h-full relative overflow-hidden bg-gray-50 dark:bg-gray-900 cursor-grab active:cursor-grabbing touch-none"
+      onWheel={handleWheel}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      ref={containerRef}
+    >
+      <div
+        className="absolute inset-0 flex items-center justify-center transition-transform duration-75 ease-out origin-center will-change-transform"
+        style={{
+          transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`
+        }}
+      >
+        <img
+          src={src}
+          alt={alt}
+          className="max-w-full max-h-full object-contain pointer-events-none select-none"
+          draggable={false}
+        />
+      </div>
+
+      {/* Controls */}
+      <div className="absolute bottom-4 right-4 flex gap-2 z-10">
+        <Button size="icon" variant="secondary" onClick={zoomOut} className="h-8 w-8 rounded-lg shadow-lg bg-background/80 backdrop-blur-sm border border-border">
+          <ZoomOut className="w-4 h-4" />
+        </Button>
+        <div className="h-8 md:min-w-[60px] flex items-center justify-center px-2 rounded-lg shadow-lg bg-background/80 backdrop-blur-sm border border-border text-xs font-mono">
+          {Math.round(scale * 100)}%
+        </div>
+        <Button size="icon" variant="secondary" onClick={zoomIn} className="h-8 w-8 rounded-lg shadow-lg bg-background/80 backdrop-blur-sm border border-border">
+          <ZoomIn className="w-4 h-4" />
+        </Button>
+      </div>
+
+      <div className="absolute top-4 left-4 pointer-events-none opacity-50 bg-background/50 backdrop-blur px-2 py-1 rounded text-xs">
+        Scroll to Zoom • Drag to Pan
+      </div>
+    </div>
+  );
+};
+
+const TopicDetail = () => {
+  const { id } = useParams<{ id: string }>();
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState<"cards" | "infographic" | "article">("cards");
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
+
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href);
+    toast({ title: "Link copied", description: "Topic link copied to clipboard." });
+  };
+
+
+
+  const { data: topic, isLoading, error } = useQuery({
+    queryKey: ["client-topic", id],
+    queryFn: () => getTopic(id!),
+    enabled: !!id,
+  });
+
+  const sidebarContent = useMemo(() => {
+    if (!topic?.sidebar_content) return null;
     try {
-      if (navigator.share) {
-        await navigator.share(shareData);
-      } else {
-        await navigator.clipboard.writeText(window.location.href);
-        toast.success("Link copied!", {
-          description: "Share this topic with others",
-        });
+      if (typeof topic.sidebar_content === 'object') {
+        return topic.sidebar_content;
       }
-    } catch (err) {
-      await navigator.clipboard.writeText(window.location.href);
-      toast.success("Link copied!", {
-        description: "Share this topic with others",
-      });
+      return JSON.parse(topic.sidebar_content as string);
+    } catch (e) {
+      console.error("Failed to parse sidebar content", e);
+      return null;
+    }
+  }, [topic?.sidebar_content]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen">
+        <Navbar />
+        <div className="flex items-center justify-center py-40">
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error || !topic) {
+    return (
+      <div className="min-h-screen">
+        <Navbar />
+        <div className="text-center py-40 px-4">
+          <h2 className="font-display text-2xl font-bold mb-2">Topic Not Found</h2>
+          <Link to="/explore" className="text-primary hover:underline">Back to Explore</Link>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  const cards = topic?.cards || [];
+  const safeCurrentCardIndex = Math.min(currentCardIndex, Math.max(0, cards.length - 1));
+  const progress = cards.length > 0 ? ((safeCurrentCardIndex + 1) / cards.length) * 100 : 0;
+
+  const handleNextCard = () => {
+    if (currentCardIndex < cards.length - 1) {
+      setCurrentCardIndex(prev => prev + 1);
+    }
+  };
+
+  const handlePrevCard = () => {
+    if (currentCardIndex > 0) {
+      setCurrentCardIndex(prev => prev - 1);
     }
   };
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="pt-20 pb-16">
-        {/* Hero Section */}
-        <div className="relative h-64 md:h-80 overflow-hidden">
-          <img
-            src={topicData.image}
-            alt={topicData.title}
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
-          
-          {/* Back Button */}
-          <div className="absolute top-4 left-4">
-            <Button asChild variant="secondary" size="sm" className="rounded-xl bg-white/90 backdrop-blur-sm hover:bg-white">
-              <Link to="/explore">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back
-              </Link>
-            </Button>
-          </div>
+
+      {/* Banner Section */}
+      <div className="relative pt-24 pb-16 px-4 md:px-8 overflow-hidden">
+        <div className="absolute inset-0 z-0">
+          <div className="absolute inset-0 bg-gradient-to-b from-blue-50/50 to-background/90 dark:from-blue-950/20 dark:to-background"></div>
+          {/* Abstract Pattern */}
+          <div className="absolute top-0 left-0 w-full h-[500px] opacity-10 dark:opacity-5 bg-[url('https://images.unsplash.com/photo-1620641788421-7f1c9ddde591?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center"></div>
         </div>
 
-        <div className="container mx-auto px-4 -mt-20 relative z-10">
-          {/* Topic Header */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
-          >
-            <div className="flex flex-wrap items-center gap-3 mb-4">
-              <Badge className="bg-primary/10 text-primary border-primary/20 font-medium">
-                {topicData.category}
-              </Badge>
-              <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">
-                {topicData.difficulty}
-              </Badge>
+        <div className="relative z-10 max-w-7xl mx-auto">
+          <Link to="/explore" className="inline-flex items-center gap-2 px-4 py-2 bg-background/50 backdrop-blur-sm border border-border/50 rounded-full text-sm font-medium hover:bg-background/80 transition-colors mb-8">
+            <ArrowLeft className="w-4 h-4" /> Back
+          </Link>
+
+          <div className="max-w-3xl">
+            <div className="flex flex-wrap items-center gap-3 mb-6">
+              <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold uppercase tracking-wider">
+                {topic.category}
+              </span>
+              <span className={`px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider ${difficultyColors[topic.difficulty]}`}>
+                {topic.difficulty}
+              </span>
             </div>
-            <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 text-foreground">
-              {topicData.title}
+
+            <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
+              {topic.title}
             </h1>
-            <p className="text-muted-foreground text-lg max-w-3xl">
-              {topicData.summary}
+            <p className="text-xl text-muted-foreground leading-relaxed max-w-2xl">
+              {topic.summary}
             </p>
-          </motion.div>
+          </div>
+        </div>
+      </div>
 
+      <main className="px-4 md:px-8 pb-20">
+        <div className="max-w-7xl mx-auto">
           {/* Controls Bar */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="flex flex-wrap items-center justify-between gap-4 mb-8 p-4 bg-card rounded-2xl border border-border"
-          >
-            {/* View Mode Toggle */}
-            <div className="flex items-center gap-1 p-1 bg-secondary rounded-xl">
-              <Button
-                variant={viewMode === "cards" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("cards")}
-                className="rounded-lg"
-              >
-                <Layers className="w-4 h-4 mr-2" />
-                Cards
-              </Button>
-              <Button
-                variant={viewMode === "infographic" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("infographic")}
-                className="rounded-lg"
-              >
-                <Image className="w-4 h-4 mr-2" />
-                Infographic
-              </Button>
-              <Button
-                variant={viewMode === "article" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("article")}
-                className="rounded-lg"
-              >
-                <FileText className="w-4 h-4 mr-2" />
-                Article
-              </Button>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+            <div className="flex p-1 bg-muted/50 rounded-full border border-border/50">
+              {[
+                { id: "cards", label: "Cards", icon: BookOpen },
+                { id: "infographic", label: "Infographic", icon: BarChart3 },
+                { id: "article", label: "Article", icon: BookOpen },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`flex items-center gap-2 px-6 py-2 rounded-full text-sm font-medium transition-all ${activeTab === tab.id
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                    }`}
+                >
+                  <tab.icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              ))}
             </div>
 
-            {/* Action Buttons */}
             <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="rounded-xl"
-                onClick={handleBookmark}
-              >
-                <Bookmark className={`w-4 h-4 mr-2 ${isBookmarked ? "fill-primary text-primary" : ""}`} />
-                {isBookmarked ? "Saved" : "Save"}
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="rounded-xl"
-                onClick={handleShare}
-              >
-                <Share2 className="w-4 h-4 mr-2" />
-                Share
+              <Button variant="outline" className="gap-2 rounded-xl" onClick={handleShare}>
+                <Share2 className="w-4 h-4" /> Share
               </Button>
             </div>
-          </motion.div>
+          </div>
 
-          {/* Content Area */}
-          <div className="grid lg:grid-cols-3 gap-8">
-            {/* Main Content */}
-            <div className="lg:col-span-2">
+          <div className="grid lg:grid-cols-[1fr_350px] gap-8">
+            {/* Main Content Area */}
+            <div className="min-w-0">
               <AnimatePresence mode="wait">
-                {viewMode === "cards" && (
+                {activeTab === "cards" && cards.length > 0 && (
                   <motion.div
-                    key="cards"
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
                   >
                     {/* Progress Bar */}
-                    <div className="mb-6">
-                      <div className="flex items-center justify-between text-sm mb-2">
-                        <span className="text-muted-foreground font-medium">
-                          Step {activeCardIndex + 1} of {topicData.cards.length}
-                        </span>
-                        <span className="font-semibold text-primary">{Math.round(progress)}% complete</span>
-                      </div>
-                      <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                        <motion.div
-                          className="h-full bg-gradient-to-r from-primary to-primary/60 rounded-full"
-                          initial={{ width: 0 }}
-                          animate={{ width: `${progress}%` }}
-                          transition={{ duration: 0.3 }}
-                        />
-                      </div>
+                    <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
+                      <span>Step {safeCurrentCardIndex + 1} of {cards.length}</span>
+                      <span>{Math.round(progress)}% complete</span>
+                    </div>
+                    <div className="h-2 bg-secondary rounded-full overflow-hidden mb-6">
+                      <div
+                        className="h-full bg-primary transition-all duration-300 ease-out"
+                        style={{ width: `${progress}%` }}
+                      ></div>
                     </div>
 
-                    {/* Card Display */}
-                    <div className="relative bg-card rounded-2xl border border-border overflow-hidden min-h-[420px] flex flex-col">
-                      <AnimatePresence mode="wait">
-                        <motion.div
-                          key={currentCard.id}
-                          initial={{ opacity: 0, x: 50 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: -50 }}
-                          transition={{ duration: 0.3 }}
-                          className="flex-1 flex flex-col p-8"
-                        >
-                          <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${currentCard.color} flex items-center justify-center mb-6 shadow-lg`}>
-                            <currentCard.icon className="w-8 h-8 text-white" />
-                          </div>
-                          <h2 className="font-display text-2xl font-bold mb-4 text-foreground">
-                            {currentCard.title}
-                          </h2>
-                          <p className="text-muted-foreground text-lg leading-relaxed flex-1">
-                            {currentCard.content}
-                          </p>
-                        </motion.div>
-                      </AnimatePresence>
+                    {/* Card Content */}
+                    <div className="bg-card border border-border/50 rounded-3xl p-6 md:p-10 min-h-[280px] flex flex-col justify-center relative shadow-sm">
+                      <div className="w-16 h-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center mb-6">
+                        <Lightbulb className="w-8 h-8" />
+                      </div>
+
+                      <h2 className="font-display text-2xl md:text-3xl font-bold mb-4">
+                        {cards[safeCurrentCardIndex]?.title || "Untitled Card"}
+                      </h2>
+                      <p className="text-lg text-muted-foreground leading-relaxed">
+                        {cards[safeCurrentCardIndex]?.content || "No content available."}
+                      </p>
 
                       {/* Navigation */}
-                      <div className="flex items-center justify-between p-6 border-t border-border bg-secondary/30">
+                      <div className="flex items-center justify-between mt-6 pt-6 border-t border-border/50">
                         <Button
-                          variant="outline"
-                          onClick={prevCard}
-                          disabled={activeCardIndex === 0}
-                          className="rounded-xl"
+                          variant="ghost"
+                          onClick={handlePrevCard}
+                          disabled={safeCurrentCardIndex === 0}
+                          className="gap-2 text-muted-foreground"
                         >
-                          <ChevronLeft className="w-4 h-4 mr-2" />
-                          Previous
+                          <ChevronLeft className="w-4 h-4" /> Previous
                         </Button>
-                        <div className="flex items-center gap-2">
-                          {topicData.cards.map((_, index) => (
-                            <button
-                              key={index}
-                              onClick={() => setActiveCardIndex(index)}
-                              className={`w-3 h-3 rounded-full transition-all ${
-                                index === activeCardIndex
-                                  ? "bg-primary scale-110"
-                                  : index < activeCardIndex
-                                  ? "bg-primary/40"
-                                  : "bg-border hover:bg-muted-foreground/30"
-                              }`}
+
+                        <div className="flex gap-2">
+                          {cards.map((_, idx) => (
+                            <div
+                              key={idx}
+                              className={`w-2.5 h-2.5 rounded-full transition-colors ${idx === safeCurrentCardIndex ? "bg-primary" : "bg-secondary"
+                                }`}
                             />
                           ))}
                         </div>
+
                         <Button
-                          onClick={nextCard}
-                          disabled={activeCardIndex === topicData.cards.length - 1}
-                          className="rounded-xl"
+                          onClick={handleNextCard}
+                          disabled={safeCurrentCardIndex === cards.length - 1}
+                          className="gap-2 rounded-xl px-6"
                         >
-                          Next
-                          <ChevronRight className="w-4 h-4 ml-2" />
+                          Next <ChevronRight className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
                   </motion.div>
                 )}
 
-                {viewMode === "infographic" && (
+                {activeTab === "cards" && cards.length === 0 && (
+                  <div className="flex flex-col items-center justify-center p-12 bg-card border border-border/50 rounded-3xl text-center">
+                    <p className="text-muted-foreground">No flashcards available for this topic.</p>
+                  </div>
+                )}
+
+                {activeTab === "infographic" && (
                   <motion.div
-                    key="infographic"
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    className="bg-card rounded-2xl border border-border overflow-hidden"
+                    exit={{ opacity: 0, y: -10 }}
+                    className="bg-card border border-border/50 rounded-3xl p-1 overflow-hidden h-[600px] relative group"
                   >
-                    {/* Infographic Header */}
-                    <div className="p-6 border-b border-border bg-gradient-to-r from-primary/5 to-primary/10">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-display text-xl font-bold mb-1">{topicData.infographic.title}</h3>
-                          <p className="text-muted-foreground text-sm">Visual breakdown of key concepts</p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" className="rounded-lg">
-                            <ZoomIn className="w-4 h-4 mr-2" />
-                            Zoom
-                          </Button>
-                          <Button variant="outline" size="sm" className="rounded-lg">
-                            <Download className="w-4 h-4 mr-2" />
-                            Download
-                          </Button>
-                        </div>
+                    {topic.infographic_image_url ? (
+                      <div className="w-full h-full relative overflow-hidden bg-secondary/20 rounded-2xl">
+                        <InteractiveImage src={topic.infographic_image_url} alt={topic.title} />
                       </div>
-                    </div>
-
-                    {/* Key Stats Grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-6 border-b border-border">
-                      {topicData.infographic.keyStats.map((stat, index) => (
-                        <motion.div
-                          key={stat.label}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: index * 0.1 }}
-                          className="text-center p-4 rounded-xl bg-secondary/50"
-                        >
-                          <p className="font-display text-2xl font-bold text-primary">{stat.value}</p>
-                          <p className="text-muted-foreground text-sm">{stat.label}</p>
-                        </motion.div>
-                      ))}
-                    </div>
-
-                    {/* Process Flow */}
-                    <div className="p-6">
-                      <h4 className="font-display font-semibold text-lg mb-6">The LLM Pipeline</h4>
-                      <div className="space-y-4">
-                        {topicData.infographic.sections.map((section, index) => (
-                          <motion.div
-                            key={section.title}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.15 }}
-                            className="flex gap-4 p-4 rounded-xl bg-secondary/30 border border-border"
-                          >
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shrink-0 text-primary-foreground font-bold">
-                              {index + 1}
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between mb-1">
-                                <h5 className="font-semibold">{section.title}</h5>
-                                <Badge variant="secondary" className="text-xs">{section.stat}</Badge>
-                              </div>
-                              <p className="text-muted-foreground text-sm">{section.description}</p>
-                            </div>
-                          </motion.div>
-                        ))}
+                    ) : (
+                      <div className="h-full flex flex-col items-center justify-center text-muted-foreground p-8">
+                        <BarChart3 className="w-12 h-12 mb-4 opacity-20" />
+                        <p>No infographic available for this topic.</p>
                       </div>
-                    </div>
+                    )}
                   </motion.div>
                 )}
 
-                {viewMode === "article" && (
+                {activeTab === "article" && (
                   <motion.div
-                    key="article"
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    className="bg-card rounded-2xl border border-border p-8"
+                    exit={{ opacity: 0, y: -10 }}
+                    className="bg-card border border-border/50 rounded-3xl p-8 md:p-12"
                   >
-                    <article className="prose prose-neutral dark:prose-invert max-w-none">
-                      <h2 className="font-display">Understanding Large Language Models</h2>
-                      <p className="lead text-lg text-muted-foreground">
-                        Large Language Models (LLMs) represent one of the most significant advances in artificial intelligence. They enable machines to understand and generate human-like text with unprecedented accuracy.
-                      </p>
-                      
-                      <h3 className="font-display">What Makes LLMs Special?</h3>
-                      <p>
-                        Unlike traditional rule-based systems, LLMs learn patterns from massive datasets containing billions of words from books, websites, and other text sources. This training allows them to capture nuanced relationships between words, concepts, and ideas.
-                      </p>
-                      
-                      <h3 className="font-display">The Transformer Architecture</h3>
-                      <p>
-                        At the heart of modern LLMs is the Transformer architecture, introduced in 2017. This architecture uses a mechanism called "attention" that allows the model to focus on relevant parts of the input when generating each word of output.
-                      </p>
-                      
-                      <h3 className="font-display">Applications and Impact</h3>
-                      <p>
-                        LLMs are revolutionizing industries from customer service to software development. They power chatbots, writing assistants, code generators, and research tools, making expert-level capabilities accessible to everyone.
-                      </p>
-
-                      <h3 className="font-display">Best Practices for Using LLMs</h3>
-                      <ul>
-                        <li>Always verify important facts and claims</li>
-                        <li>Provide clear, specific prompts for better results</li>
-                        <li>Understand the model's limitations and knowledge cutoffs</li>
-                        <li>Use them as tools to augment, not replace, human judgment</li>
-                      </ul>
-                    </article>
+                    <div className="prose prose-lg dark:prose-invert max-w-none">
+                      <div dangerouslySetInnerHTML={{ __html: topic.articleContent }} />
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -478,73 +383,62 @@ const TopicDetail = () => {
 
             {/* Sidebar */}
             <div className="space-y-6">
-              {/* Key Terms */}
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.2 }}
-                className="bg-card rounded-2xl border border-border p-6"
-              >
-                <h3 className="font-display font-semibold text-lg mb-4 flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Lightbulb className="w-4 h-4 text-primary" />
-                  </div>
-                  Key Terms
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {topicData.keyTerms.map((term) => (
-                    <Badge key={term} variant="secondary" className="cursor-pointer hover:bg-primary/10 transition-colors">
-                      {term}
-                    </Badge>
-                  ))}
-                </div>
-              </motion.div>
+              {sidebarContent && (
+                <>
+                  {/* Key Terms */}
+                  {sidebarContent?.key_terms && Array.isArray(sidebarContent.key_terms) && (
+                    <div className="bg-card border border-border/50 rounded-2xl p-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Lightbulb className="w-5 h-5 text-blue-500" />
+                        <h3 className="font-semibold">Key Terms</h3>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {sidebarContent.key_terms.map((term: string) => (
+                          <span key={term} className="px-2 py-1 bg-secondary rounded-md text-xs font-medium">
+                            {term}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
-              {/* Use Cases */}
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 }}
-                className="bg-card rounded-2xl border border-border p-6"
-              >
-                <h3 className="font-display font-semibold text-lg mb-4 flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                    <Check className="w-4 h-4 text-emerald-600" />
-                  </div>
-                  Real-World Uses
-                </h3>
-                <ul className="space-y-3">
-                  {topicData.useCases.map((useCase) => (
-                    <li key={useCase} className="flex items-center gap-3 text-sm">
-                      <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                      <span className="text-muted-foreground">{useCase}</span>
-                    </li>
-                  ))}
-                </ul>
-              </motion.div>
+                  {/* Real World Uses */}
+                  {sidebarContent?.real_world_uses && Array.isArray(sidebarContent.real_world_uses) && (
+                    <div className="bg-card border border-border/50 rounded-2xl p-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <CheckCircle2 className="w-5 h-5 text-green-500" />
+                        <h3 className="font-semibold">Real-World Uses</h3>
+                      </div>
+                      <ul className="space-y-3">
+                        {sidebarContent.real_world_uses.map((use: string) => (
+                          <li key={use} className="flex items-start gap-2 text-sm text-muted-foreground">
+                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 shrink-0" />
+                            {use}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
 
-              {/* Common Mistakes */}
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.4 }}
-                className="bg-card rounded-2xl border border-border p-6"
-              >
-                <h3 className="font-display font-semibold text-lg mb-4 flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
-                    <AlertCircle className="w-4 h-4 text-orange-600" />
-                  </div>
-                  Common Mistakes
-                </h3>
-                <ul className="space-y-3">
-                  {topicData.commonMistakes.map((mistake) => (
-                    <li key={mistake} className="flex items-start gap-3 text-sm">
-                      <div className="w-2 h-2 rounded-full bg-orange-500 mt-1.5 shrink-0" />
-                      <span className="text-muted-foreground">{mistake}</span>
-                    </li>
-                  ))}
-                </ul>
-              </motion.div>
+                  {/* Common Mistakes */}
+                  {sidebarContent?.common_mistakes && Array.isArray(sidebarContent.common_mistakes) && (
+                    <div className="bg-card border border-border/50 rounded-2xl p-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <AlertCircle className="w-5 h-5 text-orange-500" />
+                        <h3 className="font-semibold">Common Mistakes</h3>
+                      </div>
+                      <ul className="space-y-3">
+                        {sidebarContent.common_mistakes.map((mistake: string) => (
+                          <li key={mistake} className="flex items-start gap-2 text-sm text-muted-foreground">
+                            <div className="w-1.5 h-1.5 rounded-full bg-orange-500 mt-1.5 shrink-0" />
+                            {mistake}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>

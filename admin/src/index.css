@@ -41,7 +41,7 @@
     --gradient-accent: linear-gradient(135deg, hsl(24 95% 53%) 0%, hsl(340 82% 52%) 100%);
     --gradient-hero: linear-gradient(135deg, hsl(221 83% 53% / 0.1) 0%, hsl(262 83% 58% / 0.1) 50%, hsl(24 95% 53% / 0.1) 100%);
     --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(220 20% 98%) 100%);
-    
+
     --shadow-sm: 0 1px 2px hsl(222 47% 11% / 0.05);
     --shadow-md: 0 4px 6px -1px hsl(222 47% 11% / 0.08), 0 2px 4px -2px hsl(222 47% 11% / 0.06);
     --shadow-lg: 0 10px 15px -3px hsl(222 47% 11% / 0.1), 0 4px 6px -4px hsl(222 47% 11% / 0.08);
@@ -99,7 +99,7 @@
 
     --gradient-hero: linear-gradient(135deg, hsl(221 83% 53% / 0.15) 0%, hsl(262 83% 58% / 0.15) 50%, hsl(24 95% 53% / 0.15) 100%);
     --gradient-card: linear-gradient(145deg, hsl(222 47% 10%) 0%, hsl(222 47% 8%) 100%);
-    
+
     --shadow-glow: 0 0 40px hsl(221 83% 53% / 0.25);
     --shadow-card-hover: 0 20px 40px -10px hsl(221 83% 53% / 0.3);
 
@@ -124,7 +124,12 @@
     font-family: 'Inter', system-ui, sans-serif;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
   }
 }
@@ -170,7 +175,33 @@
     box-shadow: var(--shadow-card-hover);
   }
 
+
   .text-balance {
     text-wrap: balance;
   }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
 }

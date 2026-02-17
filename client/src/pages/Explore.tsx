@@ -1,370 +1,287 @@
-import { useState, useMemo } from "react";
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Search, Filter, BookOpen, BarChart3, Loader2, Cpu, Code, Brain, Briefcase, TrendingUp, Atom, Flame, Globe, Heart, Music, Video, Zap, Layout, Terminal, Palette, Shield, Settings, Database, Cloud, Smartphone, Monitor } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { TopicCard } from "@/components/shared/TopicCard";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Search, Sparkles, BookOpen, Code, Brain, Briefcase, DollarSign, FlaskConical, TrendingUp, LayoutGrid, X } from "lucide-react";
-import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useQuery } from "@tanstack/react-query";
+import { getTopics, getCategories, type TopicItem } from "@/lib/api";
 
-const categories = [
-  { id: "all", label: "All Topics", icon: LayoutGrid },
-  { id: "tech", label: "Tech", icon: BookOpen },
-  { id: "programming", label: "Programming", icon: Code },
-  { id: "ai-ml", label: "AI & ML", icon: Brain },
-  { id: "business", label: "Business", icon: Briefcase },
-  { id: "finance", label: "Finance", icon: DollarSign },
-  { id: "science", label: "Science", icon: FlaskConical },
-  { id: "trending", label: "Trending", icon: TrendingUp },
-];
+const difficultyColors: Record<string, string> = {
+  Beginner: "bg-emerald-500/10 text-emerald-600",
+  Intermediate: "bg-amber-500/10 text-amber-600",
+  Advanced: "bg-rose-500/10 text-rose-600",
+};
 
-const allTopics = [
-  {
-    id: "1",
-    title: "Large Language Models",
-    summary: "How GPT, Claude and other LLMs are reshaping AI",
-    category: "AI & ML",
-    difficulty: "Intermediate",
-    hasInfographic: true,
-    hasArticle: true,
-  },
-  {
-    id: "2",
-    title: "React Server Components",
-    summary: "The future of React rendering explained",
-    category: "Programming",
-    difficulty: "Advanced",
-    hasInfographic: true,
-    hasArticle: true,
-  },
-  {
-    id: "3",
-    title: "Quantum Computing Basics",
-    summary: "Understanding qubits, superposition, and entanglement",
-    category: "Science",
-    difficulty: "Beginner",
-    hasInfographic: true,
-    hasArticle: false,
-  },
-  {
-    id: "4",
-    title: "Startup Fundraising",
-    summary: "From seed to Series A: A complete guide",
-    category: "Business",
-    difficulty: "Intermediate",
-    hasInfographic: true,
-    hasArticle: true,
-  },
-  {
-    id: "5",
-    title: "Neural Networks Deep Dive",
-    summary: "From perceptrons to transformers",
-    category: "AI & ML",
-    difficulty: "Advanced",
-    hasInfographic: true,
-    hasArticle: true,
-  },
-  {
-    id: "6",
-    title: "TypeScript Best Practices",
-    summary: "Write cleaner, safer code with TypeScript",
-    category: "Programming",
-    difficulty: "Intermediate",
-    hasInfographic: false,
-    hasArticle: true,
-  },
-  {
-    id: "7",
-    title: "Blockchain Fundamentals",
-    summary: "How distributed ledgers work",
-    category: "Tech",
-    difficulty: "Beginner",
-    hasInfographic: true,
-    hasArticle: true,
-  },
-  {
-    id: "8",
-    title: "Product-Market Fit",
-    summary: "Finding and measuring your market fit",
-    category: "Business",
-    difficulty: "Intermediate",
-    hasInfographic: true,
-    hasArticle: true,
-  },
-  {
-    id: "9",
-    title: "Cloud Architecture Patterns",
-    summary: "Designing scalable cloud solutions",
-    category: "Tech",
-    difficulty: "Advanced",
-    hasInfographic: true,
-    hasArticle: true,
-  },
-  {
-    id: "10",
-    title: "Personal Finance 101",
-    summary: "Building wealth through smart money habits",
-    category: "Finance",
-    difficulty: "Beginner",
-    hasInfographic: true,
-    hasArticle: true,
-  },
-  {
-    id: "11",
-    title: "CRISPR Gene Editing",
-    summary: "The revolution in genetic engineering",
-    category: "Science",
-    difficulty: "Intermediate",
-    hasInfographic: true,
-    hasArticle: true,
-  },
-  {
-    id: "12",
-    title: "GraphQL vs REST",
-    summary: "Choosing the right API architecture",
-    category: "Programming",
-    difficulty: "Intermediate",
-    hasInfographic: true,
-    hasArticle: true,
-  },
-];
+const categoryParams: Record<string, string> = {
+  "AI & ML": "bg-purple-500/10 text-purple-600",
+  "Programming": "bg-blue-500/10 text-blue-600",
+  "Science": "bg-red-500/10 text-red-600",
+  "Business": "bg-orange-500/10 text-orange-600",
+};
 
-// Suggestions for autocomplete
-const searchSuggestions = [
-  "Large Language Models",
-  "React Server Components", 
-  "Machine Learning basics",
-  "Python programming",
-  "JavaScript frameworks",
-  "Cloud computing",
-  "Data Science",
-  "Web development",
-  "Artificial Intelligence",
-  "Blockchain technology",
-];
+const iconMap: Record<string, any> = {
+  Cpu, Code, Brain, Briefcase, TrendingUp, Atom, Flame, Globe, Heart, Music, Video, Zap, Layout, Terminal, Palette, Shield, Settings, Database, Cloud, Smartphone, Monitor
+};
 
 const Explore = () => {
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
+  const selectedCategory = searchParams.get("category") || "";
+  const [timeRange, setTimeRange] = useState("All Time");
 
-  const filteredSuggestions = useMemo(() => {
-    if (!searchQuery.trim()) return searchSuggestions.slice(0, 5);
-    return searchSuggestions.filter((suggestion) =>
-      suggestion.toLowerCase().includes(searchQuery.toLowerCase())
-    ).slice(0, 5);
-  }, [searchQuery]);
-
-  const getCategoryName = (categoryId: string) => {
-    const categoryMap: Record<string, string> = {
-      "all": "All",
-      "tech": "Tech",
-      "programming": "Programming",
-      "ai-ml": "AI & ML",
-      "business": "Business",
-      "finance": "Finance",
-      "science": "Science",
-      "trending": "Trending",
-    };
-    return categoryMap[categoryId] || "All";
-  };
-
-  const filteredTopics = allTopics.filter((topic) => {
-    const categoryName = getCategoryName(selectedCategory);
-    const matchesCategory = selectedCategory === "all" || topic.category === categoryName;
-    const matchesSearch =
-      topic.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      topic.summary.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+  const { data: categories = [] } = useQuery({
+    queryKey: ["client-categories"],
+    queryFn: getCategories,
   });
 
-  const handleSuggestionClick = (suggestion: string) => {
-    setSearchQuery(suggestion);
-    setShowSuggestions(false);
-  };
+  const { data: topics = [], isLoading } = useQuery({
+    queryKey: ["client-topics", selectedCategory, searchQuery, timeRange],
+    queryFn: () => getTopics({
+      category: selectedCategory || undefined,
+      search: searchQuery || undefined,
+      timeRange: timeRange || undefined,
+    }),
+  });
 
-  const handleCategorySelect = (categoryId: string) => {
-    setSelectedCategory(categoryId);
-    setMobileMenuOpen(false);
+  const setCategory = (slug: string) => {
+    const params = new URLSearchParams(searchParams);
+    if (slug) params.set("category", slug);
+    else params.delete("category");
+    setSearchParams(params);
   };
-
-  const CategorySidebar = ({ isMobile = false }: { isMobile?: boolean }) => (
-    <div className={isMobile ? "" : "p-6"}>
-      <h2 className="font-display font-semibold text-lg mb-4">Categories</h2>
-      <nav className="space-y-1">
-        {categories.map((category) => {
-          const Icon = category.icon;
-          const isActive = selectedCategory === category.id;
-          return (
-            <button
-              key={category.id}
-              onClick={() => handleCategorySelect(category.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                isActive
-                  ? "bg-primary text-primary-foreground shadow-md"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              {category.label}
-            </button>
-          );
-        })}
-      </nav>
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="pt-16">
-        <div className="flex">
-          {/* Desktop Sidebar */}
-          <aside className="hidden lg:block w-64 shrink-0 border-r border-border bg-card/50 min-h-[calc(100vh-4rem)] sticky top-16">
-            <CategorySidebar />
+      <main className="pt-24 pb-20 px-4 md:px-8">
+        <div className="max-w-[1600px] mx-auto grid lg:grid-cols-[280px_1fr] gap-8">
+
+          {/* Sidebar - Desktop Only */}
+          <aside className="hidden lg:block sticky top-24 h-[calc(100vh-8rem)] overflow-y-auto pr-4">
+            <h2 className="text-lg font-bold mb-6 px-4">Categories</h2>
+            <div className="space-y-1">
+              <button
+                onClick={() => setCategory("")}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${!selectedCategory
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                  }`}
+              >
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${!selectedCategory ? "bg-white/20" : "bg-secondary"}`}>
+                  <div className="grid grid-cols-2 gap-0.5 w-4 h-4">
+                    <div className="bg-current rounded-[1px]"></div>
+                    <div className="bg-current rounded-[1px]"></div>
+                    <div className="bg-current rounded-[1px]"></div>
+                    <div className="bg-current rounded-[1px]"></div>
+                  </div>
+                </div>
+                All Topics
+              </button>
+
+              {categories.map((cat) => {
+                const isUrl = cat.icon.startsWith("http") || cat.icon.startsWith("/");
+                const Icon = !isUrl ? (iconMap[cat.icon] || Cpu) : null;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => setCategory(cat.slug)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${selectedCategory === cat.slug
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                      }`}
+                  >
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden ${selectedCategory === cat.slug ? "bg-white/20" : "bg-secondary"}`}>
+                      {isUrl ? (
+                        <img src={cat.icon} alt={cat.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <Icon className="w-4 h-4" />
+                      )}
+                    </div>
+                    {cat.name}
+                  </button>
+                );
+              })}
+            </div>
           </aside>
 
           {/* Main Content */}
-          <div className="flex-1 p-4 md:p-6 lg:p-8">
-            {/* Search Bar with Autocomplete */}
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="relative max-w-2xl mx-auto mb-6 md:mb-8"
-            >
-              <div className="relative">
+          <div className="min-w-0">
+            {/* Mobile Category Filter */}
+            <div className="lg:hidden mb-6 -mx-4 px-4 overflow-x-auto pb-4 scrollbar-hide">
+              <div className="flex items-center gap-2 min-w-max">
+                <button
+                  onClick={() => setCategory("")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border transition-all ${!selectedCategory
+                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                    : "bg-card text-muted-foreground border-border hover:bg-secondary hover:text-foreground"
+                    }`}
+                >
+                  All Topics
+                </button>
+                {categories.map((cat) => {
+                  const isUrl = cat.icon.startsWith("http") || cat.icon.startsWith("/");
+                  const Icon = !isUrl ? (iconMap[cat.icon] || Cpu) : null;
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => setCategory(cat.slug)}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border transition-all ${selectedCategory === cat.slug
+                        ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                        : "bg-card text-muted-foreground border-border hover:bg-secondary hover:text-foreground"
+                        }`}
+                    >
+                      {isUrl ? (
+                        <img src={cat.icon} alt={cat.name} className="w-3.5 h-3.5 object-cover rounded-full" />
+                      ) : (
+                        <Icon className="w-3.5 h-3.5" />
+                      )}
+                      {cat.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            {/* Search Bar & Filters */}
+            <div className="flex flex-col md:flex-row gap-4 mb-8 max-w-2xl mx-auto lg:mx-0">
+              <div className="relative flex-grow">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <Input
+                <input
+                  type="text"
                   placeholder="Search topics..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  onFocus={() => setShowSuggestions(true)}
-                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                  className="pl-12 pr-12 h-12 md:h-14 rounded-2xl text-base border-2 focus:border-primary bg-card"
+                  className="w-full h-12 pl-12 pr-4 rounded-2xl border border-border/50 bg-card shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 text-base"
                 />
-                {searchQuery && (
-                  <Button 
-                    size="icon" 
-                    variant="ghost" 
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-xl"
-                    onClick={() => setSearchQuery("")}
-                  >
-                    <X className="w-4 h-4 text-muted-foreground" />
-                  </Button>
-                )}
-                {!searchQuery && (
-                  <Button 
-                    size="icon" 
-                    variant="ghost" 
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-xl"
-                  >
-                    <Sparkles className="w-5 h-5 text-primary" />
-                  </Button>
-                )}
               </div>
 
-              {/* Autocomplete Suggestions */}
-              {showSuggestions && filteredSuggestions.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-xl shadow-lg overflow-hidden z-50"
-                >
-                  <div className="py-2 px-3 border-b border-border">
-                    <span className="text-xs text-muted-foreground font-medium">
-                      {searchQuery ? "Suggestions" : "Popular searches"}
-                    </span>
-                  </div>
-                  {filteredSuggestions.map((suggestion, index) => (
-                    <button
-                      key={index}
-                      onMouseDown={() => handleSuggestionClick(suggestion)}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-secondary transition-colors"
-                    >
-                      <Search className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm">{suggestion}</span>
-                    </button>
-                  ))}
-                </motion.div>
-              )}
-            </motion.div>
-
-            {/* Mobile Category Filter */}
-            <div className="lg:hidden mb-6">
-              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                <SheetTrigger asChild>
-                  <Button variant="outline" className="w-full justify-between rounded-xl h-12">
-                    <span className="flex items-center gap-2">
-                      <LayoutGrid className="w-4 h-4" />
-                      {getCategoryName(selectedCategory) === "All" ? "All Topics" : getCategoryName(selectedCategory)}
-                    </span>
-                    <span className="text-xs text-muted-foreground">Tap to filter</span>
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="w-[280px] p-0">
-                  <SheetHeader className="p-6 pb-0">
-                    <SheetTitle>Filter Topics</SheetTitle>
-                  </SheetHeader>
-                  <div className="p-6 pt-4">
-                    <CategorySidebar isMobile />
-                  </div>
-                </SheetContent>
-              </Sheet>
-            </div>
-
-            {/* Results Header */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex items-center justify-between mb-6"
-            >
-              <div>
-                <h1 className="font-display text-xl md:text-2xl font-bold mb-1">
-                  {getCategoryName(selectedCategory) === "All" ? "All Topics" : getCategoryName(selectedCategory)}
-                </h1>
-                <p className="text-muted-foreground text-sm">
-                  {filteredTopics.length} {filteredTopics.length === 1 ? "topic" : "topics"} available
-                </p>
-              </div>
-            </motion.div>
-
-            {/* Topics Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
-              {filteredTopics.map((topic, index) => (
-                <motion.div
-                  key={topic.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.05 }}
-                >
-                  <TopicCard topic={topic} />
-                </motion.div>
-              ))}
-            </div>
-
-            {/* Empty State */}
-            {filteredTopics.length === 0 && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-center py-16"
-              >
-                <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mx-auto mb-4">
-                  <Search className="w-8 h-8 text-muted-foreground" />
+              <div className="relative min-w-[140px]">
+                <div className="relative">
+                  <select
+                    value={timeRange}
+                    onChange={(e) => setTimeRange(e.target.value)}
+                    className="w-full h-12 pl-4 pr-10 appearance-none rounded-2xl border border-border/50 bg-card shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm font-medium cursor-pointer"
+                  >
+                    <option value="All Time">All Time</option>
+                    <option value="Today">Today</option>
+                    <option value="This Week">This Week</option>
+                    <option value="This Month">This Month</option>
+                  </select>
+                  <Filter className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                 </div>
-                <h3 className="font-display text-xl font-semibold mb-2">No topics found</h3>
-                <p className="text-muted-foreground mb-4">
-                  Try adjusting your filters or search query
-                </p>
-                <Button onClick={() => {
-                  setSelectedCategory("all");
-                  setSearchQuery("");
-                }}>
-                  Clear Filters
-                </Button>
-              </motion.div>
+              </div>
+            </div>
+
+            {/* Header */}
+            <div className="mb-8">
+              <h1 className="text-2xl font-bold mb-1">
+                {selectedCategory
+                  ? categories.find(c => c.slug === selectedCategory)?.name || "Topics"
+                  : "All Topics"}
+              </h1>
+              <p className="text-muted-foreground">
+                {topics.length} topics available
+              </p>
+            </div>
+
+            {/* Loading */}
+            {isLoading ? (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3, 4, 5, 6].map(i => (
+                  <div key={i} className="h-48 rounded-2xl bg-secondary/30 animate-pulse"></div>
+                ))}
+              </div>
+            ) : (
+              <>
+                {/* Topics Grid */}
+                <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  <AnimatePresence mode="popLayout">
+                    {topics.map((topic, index) => {
+                      // Determine colors based on category
+                      let borderClass = "border-t-primary";
+                      let textClass = "text-primary";
+
+                      const cat = topic.category?.toLowerCase() || "";
+                      if (cat.includes("ai")) { borderClass = "border-t-purple-500"; textClass = "text-purple-600"; }
+                      else if (cat.includes("programming") || cat.includes("code")) { borderClass = "border-t-blue-500"; textClass = "text-blue-600"; }
+                      else if (cat.includes("science")) { borderClass = "border-t-pink-500"; textClass = "text-pink-600"; }
+                      else if (cat.includes("business") || cat.includes("finance")) { borderClass = "border-t-orange-500"; textClass = "text-orange-600"; }
+                      else if (cat.includes("lifestyle") || cat.includes("health")) { borderClass = "border-t-emerald-500"; textClass = "text-emerald-600"; }
+
+                      return (
+                        <motion.div
+                          key={topic.id}
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          transition={{ duration: 0.3, delay: index * 0.05 }}
+                        >
+                          <Link to={`/topic/${topic.id}`}>
+                            <div className={`group h-full flex flex-col bg-card rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-border/50 border-t-[6px] ${borderClass}`}>
+                              <div className="p-6 flex flex-col flex-grow relative">
+                                {/* Date Badge */}
+                                {topic.created_at && (
+                                  <div className="absolute top-6 right-6 text-xs font-medium text-muted-foreground">
+                                    {new Date(topic.created_at).toLocaleDateString('en-GB', {
+                                      day: 'numeric',
+                                      month: 'short',
+                                      year: 'numeric'
+                                    })}
+                                  </div>
+                                )}
+
+                                {/* Category & Difficulty */}
+                                <div className="flex flex-col items-start gap-3 mb-4 pr-20">
+                                  <span className={`text-[11px] font-extrabold uppercase tracking-widest ${textClass}`}>
+                                    {topic.category}
+                                  </span>
+                                  <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${difficultyColors[topic.difficulty] || "bg-secondary text-secondary-foreground"}`}>
+                                    {topic.difficulty}
+                                  </span>
+                                </div>
+
+                                <h3 className="font-display text-xl font-bold mb-3 group-hover:text-primary transition-colors text-foreground">
+                                  {topic.title}
+                                </h3>
+                                <p className="text-sm text-muted-foreground mb-6 line-clamp-3 leading-relaxed">
+                                  {topic.summary}
+                                </p>
+
+                                {/* Footer Spacer */}
+                                <div className="mt-auto pt-4 border-t border-border/40 w-full flex items-center gap-4 text-xs font-medium text-muted-foreground/80">
+                                  {!!topic.hasInfographic && (
+                                    <div className="flex items-center gap-1.5">
+                                      <BarChart3 className="w-4 h-4" />
+                                      Infographic
+                                    </div>
+                                  )}
+                                  {!!topic.hasArticle && (
+                                    <div className="flex items-center gap-1.5">
+                                      <BookOpen className="w-4 h-4" />
+                                      Article
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </Link>
+                        </motion.div>
+                      );
+                    })}
+                  </AnimatePresence>
+                </div>
+
+                {/* Empty State */}
+                {topics.length === 0 && (
+                  <div className="text-center py-20 bg-secondary/20 rounded-3xl border border-dashed border-border">
+                    <div className="w-16 h-16 rounded-2xl bg-background shadow-sm flex items-center justify-center mx-auto mb-4">
+                      <Search className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                    <h3 className="font-display text-xl font-semibold mb-2">No topics found</h3>
+                    <p className="text-muted-foreground">Try adjusting your search or filters</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

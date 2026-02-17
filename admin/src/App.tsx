@@ -6,9 +6,10 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminTopics from "./pages/admin/AdminTopics";
+import EditTopic from "./pages/admin/EditTopic";
 import AdminCategories from "./pages/admin/AdminCategories";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
-import AdminAIResearch from "./pages/admin/AdminAIResearch";
+import AdminResearch from "./pages/admin/AdminResearch";
 import AdminSettings from "./pages/admin/AdminSettings";
 
 const queryClient = new QueryClient();
@@ -26,16 +27,18 @@ const App = () => (
           {/* Admin routes - both with and without /admin prefix */}
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/topics" element={<AdminTopics />} />
+          <Route path="/admin/topics/new" element={<EditTopic />} />
+          <Route path="/admin/topics/:id/edit" element={<EditTopic />} />
           <Route path="/admin/categories" element={<AdminCategories />} />
           <Route path="/admin/analytics" element={<AdminAnalytics />} />
-          <Route path="/admin/ai-research" element={<AdminAIResearch />} />
+          <Route path="/admin/research" element={<AdminResearch />} />
           <Route path="/admin/settings" element={<AdminSettings />} />
 
           {/* Non-prefixed routes (mirror of admin routes) */}
           <Route path="/topics" element={<AdminTopics />} />
           <Route path="/categories" element={<AdminCategories />} />
           <Route path="/analytics" element={<AdminAnalytics />} />
-          <Route path="/ai-research" element={<AdminAIResearch />} />
+          <Route path="/research" element={<AdminResearch />} />
           <Route path="/settings" element={<AdminSettings />} />
 
           <Route path="*" element={<NotFound />} />

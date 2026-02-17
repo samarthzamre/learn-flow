@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 
 const floatingCards = [
   { icon: BarChart3, label: "Infographics", color: "from-primary to-primary/60" },
-  { icon: Brain, label: "AI Summaries", color: "from-accent to-accent/60" },
+  { icon: Brain, label: "Quick Summaries", color: "from-accent to-accent/60" },
   { icon: BookOpen, label: "Deep Reads", color: "from-category-programming to-category-programming/60" },
   { icon: Zap, label: "Trending", color: "from-category-finance to-category-finance/60" },
 ];
@@ -17,7 +17,7 @@ export function HeroSection() {
       <div className="absolute inset-0 bg-[image:var(--gradient-hero)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,hsl(var(--primary)/0.08)_0%,transparent_50%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,hsl(var(--accent)/0.08)_0%,transparent_50%)]" />
-      
+
       {/* Floating decorative elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {floatingCards.map((card, index) => (
@@ -26,12 +26,11 @@ export function HeroSection() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.8 + index * 0.1, duration: 0.5 }}
-            className={`absolute hidden lg:flex items-center gap-2 px-4 py-2 rounded-xl glass border border-border/50 shadow-lg ${
-              index === 0 ? "top-[20%] left-[8%]" :
-              index === 1 ? "top-[30%] right-[10%]" :
-              index === 2 ? "bottom-[35%] left-[5%]" :
-              "bottom-[25%] right-[8%]"
-            }`}
+            className={`absolute hidden lg:flex items-center gap-2 px-4 py-2 rounded-xl glass border border-border/50 shadow-lg ${index === 0 ? "top-[20%] left-[8%]" :
+                index === 1 ? "top-[30%] right-[10%]" :
+                  index === 2 ? "bottom-[35%] left-[5%]" :
+                    "bottom-[25%] right-[8%]"
+              }`}
             style={{
               animation: `float ${3 + index * 0.5}s ease-in-out infinite`,
               animationDelay: `${index * 0.3}s`
@@ -58,7 +57,7 @@ export function HeroSection() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
             </span>
-            <span className="text-sm font-medium text-primary">Now with AI-powered learning</span>
+            <span className="text-sm font-medium text-primary">Now with visual learning</span>
           </motion.div>
 
           {/* Headline */}
@@ -80,7 +79,7 @@ export function HeroSection() {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 text-balance"
           >
-            Master complex topics through beautiful card summaries, AI-generated infographics, and in-depth articles. The smartest way to learn anything.
+            Master complex topics through beautiful card summaries, visual infographics, and in-depth articles. The smartest way to learn anything.
           </motion.p>
 
           {/* CTA Buttons */}

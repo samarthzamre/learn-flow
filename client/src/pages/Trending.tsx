@@ -1,275 +1,219 @@
-import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
+import { Flame, BookOpen, BarChart3, Loader2, ArrowLeft, Clock, Search, ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { TopicCard } from "@/components/shared/TopicCard";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Flame, TrendingUp, Calendar } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { getTrending, getHomepage, type TopicItem } from "@/lib/api";
+import { useState, useMemo } from "react";
+
+const difficultyColors: Record<string, string> = {
+  Beginner: "bg-emerald-500/10 text-emerald-600",
+  Intermediate: "bg-amber-500/10 text-amber-600",
+  Advanced: "bg-rose-500/10 text-rose-600",
+};
 
 const timeFilters = ["Today", "This Week", "This Month"];
-
 const sourceFilters = ["All Sources", "Google", "GitHub", "Twitter", "News"];
 
-// Topics with dates for filtering
-const trendingTopics = [
-  {
-    id: "1",
-    title: "Large Language Models",
-    summary: "How GPT, Claude and other LLMs are reshaping AI",
-    category: "AI & ML",
-    difficulty: "Intermediate",
-    hasInfographic: true,
-    hasArticle: true,
-    trendScore: 98,
-    source: "Google",
-    daysAgo: 0, // Today
-  },
-  {
-    id: "2",
-    title: "React 19 Features",
-    summary: "Everything new in the latest React version",
-    category: "Programming",
-    difficulty: "Intermediate",
-    hasInfographic: true,
-    hasArticle: true,
-    trendScore: 95,
-    source: "GitHub",
-    daysAgo: 1, // Today
-  },
-  {
-    id: "3",
-    title: "Generative AI in Business",
-    summary: "How enterprises are adopting AI tools",
-    category: "Business",
-    difficulty: "Beginner",
-    hasInfographic: true,
-    hasArticle: true,
-    trendScore: 92,
-    source: "News",
-    daysAgo: 3, // This Week
-  },
-  {
-    id: "4",
-    title: "Quantum Computing Breakthrough",
-    summary: "Latest advances in quantum supremacy",
-    category: "Science",
-    difficulty: "Advanced",
-    hasInfographic: true,
-    hasArticle: true,
-    trendScore: 89,
-    source: "News",
-    daysAgo: 5, // This Week
-  },
-  {
-    id: "5",
-    title: "TypeScript 5.3 Updates",
-    summary: "New features and performance improvements",
-    category: "Programming",
-    difficulty: "Intermediate",
-    hasInfographic: false,
-    hasArticle: true,
-    trendScore: 86,
-    source: "GitHub",
-    daysAgo: 10, // This Month
-  },
-  {
-    id: "6",
-    title: "AI-Powered Code Editors",
-    summary: "Comparing Cursor, Copilot, and alternatives",
-    category: "Tech",
-    difficulty: "Beginner",
-    hasInfographic: true,
-    hasArticle: true,
-    trendScore: 84,
-    source: "Twitter",
-    daysAgo: 0, // Today
-  },
-  {
-    id: "7",
-    title: "Startup Layoffs 2024",
-    summary: "Tech industry restructuring trends",
-    category: "Business",
-    difficulty: "Beginner",
-    hasInfographic: true,
-    hasArticle: true,
-    trendScore: 81,
-    source: "News",
-    daysAgo: 15, // This Month
-  },
-  {
-    id: "8",
-    title: "Edge Computing Growth",
-    summary: "Why edge is becoming critical for AI",
-    category: "Tech",
-    difficulty: "Intermediate",
-    hasInfographic: true,
-    hasArticle: true,
-    trendScore: 78,
-    source: "Google",
-    daysAgo: 20, // This Month
-  },
-  {
-    id: "9",
-    title: "WebAssembly Revolution",
-    summary: "Running any language in the browser",
-    category: "Programming",
-    difficulty: "Advanced",
-    hasInfographic: true,
-    hasArticle: true,
-    trendScore: 76,
-    source: "GitHub",
-    daysAgo: 2, // This Week
-  },
-  {
-    id: "10",
-    title: "Sustainable Tech Innovations",
-    summary: "Green computing and energy efficiency",
-    category: "Science",
-    difficulty: "Beginner",
-    hasInfographic: true,
-    hasArticle: true,
-    trendScore: 74,
-    source: "News",
-    daysAgo: 25, // This Month
-  },
-];
-
 const Trending = () => {
-  const [selectedTime, setSelectedTime] = useState("This Week");
-  const [selectedSource, setSelectedSource] = useState("All Sources");
+  const [timeRange, setTimeRange] = useState("This Week");
+  const [source, setSource] = useState("All Sources");
 
-  const filteredTopics = useMemo(() => {
-    return trendingTopics.filter((topic) => {
-      // Time filter
-      let matchesTime = true;
-      if (selectedTime === "Today") {
-        matchesTime = topic.daysAgo <= 1;
-      } else if (selectedTime === "This Week") {
-        matchesTime = topic.daysAgo <= 7;
-      } else if (selectedTime === "This Month") {
-        matchesTime = topic.daysAgo <= 30;
-      }
+  const { data: topics = [], isLoading: isLoadingTopics } = useQuery({
+    queryKey: ["client-trending", timeRange, source],
+    queryFn: () => getTrending({ timeRange, source }),
+  });
 
-      // Source filter
-      const matchesSource = selectedSource === "All Sources" || topic.source === selectedSource;
+  const { data: homepage } = useQuery({
+    queryKey: ["homepage"],
+    queryFn: getHomepage,
+  });
 
-      return matchesTime && matchesSource;
-    });
-  }, [selectedTime, selectedSource]);
+  const categoryColors = useMemo(() => {
+    const colors: Record<string, string> = {};
+    if (homepage?.categories) {
+      homepage.categories.forEach((cat) => {
+        colors[cat.name] = cat.color;
+      });
+    }
+    return colors;
+  }, [homepage]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <Navbar />
-      <main className="pt-20 pb-16">
-        <div className="container mx-auto px-4">
+      <main className="pt-32 pb-20 px-4 md:px-8">
+        <div className="max-w-7xl mx-auto">
           {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="text-center max-w-2xl mx-auto mb-8 md:mb-12"
+            className="text-center mb-12"
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-4 md:mb-6">
-              <Flame className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium text-primary">Updated hourly</span>
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 text-blue-600 mb-6 border border-blue-100">
+              <Flame className="w-4 h-4" />
+              <span className="text-sm font-medium">Updated hourly</span>
             </div>
-            <h1 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold mb-3 md:mb-4">
-              <span className="gradient-text">Trending</span> Now
+
+            <h1 className="font-display text-5xl md:text-6xl font-bold mb-4 text-foreground">
+              <span className="text-blue-600">Trending</span> Now
             </h1>
-            <p className="text-muted-foreground text-base md:text-lg px-4">
+
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
               AI-detected hot topics from across the web, explained visually
             </p>
           </motion.div>
 
           {/* Filters */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="flex flex-col gap-4 mb-8"
+            className="flex flex-col items-center gap-6 mb-10"
           >
-            {/* Time Filter */}
-            <div className="flex items-center justify-center">
-              <div className="inline-flex items-center gap-1 p-1 bg-secondary rounded-xl">
-                {timeFilters.map((time) => (
-                  <Button
-                    key={time}
-                    variant={selectedTime === time ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setSelectedTime(time)}
-                    className="rounded-lg text-xs sm:text-sm px-3 sm:px-4"
-                  >
-                    {time === "Today" && <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />}
-                    {time}
-                  </Button>
-                ))}
-              </div>
+            {/* Time Range */}
+            <div className="flex bg-secondary/50 p-1 rounded-xl">
+              {timeFilters.map((filter) => (
+                <button
+                  key={filter}
+                  onClick={() => setTimeRange(filter)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${timeRange === filter
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                    }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {filter === "Today" && <Clock className="w-3.5 h-3.5" />}
+                    {filter}
+                  </div>
+                </button>
+              ))}
             </div>
 
-            {/* Source Filter */}
-            <div className="flex items-center justify-center gap-2 flex-wrap">
-              <TrendingUp className="w-4 h-4 text-muted-foreground hidden sm:block" />
-              <span className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Source:</span>
-              <div className="flex gap-1.5 flex-wrap justify-center">
-                {sourceFilters.map((source) => (
-                  <Badge
-                    key={source}
-                    variant={selectedSource === source ? "default" : "outline"}
-                    className="cursor-pointer hover:bg-primary/10 text-xs px-2 py-1"
-                    onClick={() => setSelectedSource(source)}
-                  >
-                    {source}
-                  </Badge>
-                ))}
-              </div>
+            {/* Sources */}
+            <div className="flex flex-wrap justify-center items-center gap-3">
+              <span className="text-sm text-muted-foreground mr-1 flex items-center gap-1">
+                <ExternalLink className="w-3.5 h-3.5" /> Source:
+              </span>
+              {sourceFilters.map((filter) => (
+                <button
+                  key={filter}
+                  onClick={() => setSource(filter)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${source === filter
+                    ? "bg-blue-600 border-blue-600 text-white"
+                    : "bg-background border-border text-muted-foreground hover:border-blue-200 hover:text-blue-600"
+                    }`}
+                >
+                  {filter}
+                </button>
+              ))}
             </div>
           </motion.div>
 
-          {/* Results count */}
-          <motion.p 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center text-muted-foreground text-sm mb-6"
-          >
-            Showing {filteredTopics.length} trending {filteredTopics.length === 1 ? 'topic' : 'topics'}
-          </motion.p>
-
-          {/* Topics Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-            {filteredTopics.map((topic, index) => (
-              <motion.div
-                key={topic.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.1 + index * 0.05 }}
-              >
-                <TopicCard topic={topic} showTrendScore />
-              </motion.div>
-            ))}
+          <div className="text-center mb-8">
+            <span className="text-sm text-muted-foreground">
+              Showing {topics.length} trending topics
+            </span>
           </div>
 
-          {/* Empty State */}
-          {filteredTopics.length === 0 && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center py-16"
-            >
-              <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mx-auto mb-4">
-                <Flame className="w-8 h-8 text-muted-foreground" />
+          {/* Loading */}
+          {isLoadingTopics ? (
+            <div className="flex items-center justify-center py-24">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <>
+              {/* Topics Grid */}
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {topics.map((topic, index) => {
+                  const catColor = categoryColors[topic.category] || "#64748b"; // default slate
+
+                  return (
+                    <motion.div
+                      key={topic.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: index * 0.05 + 0.2 }}
+                    >
+                      <Link to={`/topic/${topic.id}`}>
+                        <div className="card-hover group overflow-hidden rounded-3xl border border-border/50 bg-card h-full flex flex-col shadow-sm hover:shadow-md transition-all">
+                          {/* Card Header */}
+                          <div
+                            className="px-6 py-4 flex items-center justify-between border-b border-border/5"
+                            style={{ backgroundColor: `${catColor}10` }}
+                          >
+                            <span
+                              className="text-[10px] font-bold uppercase tracking-wider"
+                              style={{ color: catColor }}
+                            >
+                              {topic.category}
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <Flame className="w-3.5 h-3.5" style={{ color: catColor }} />
+                              <span className="text-sm font-bold" style={{ color: catColor }}>
+                                {topic.trendScore}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="p-6 flex-1 flex flex-col">
+                            {/* Difficulty */}
+                            <div className="mb-4">
+                              <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold tracking-wide ${difficultyColors[topic.difficulty] || ""}`}>
+                                {topic.difficulty}
+                              </span>
+                            </div>
+
+                            {/* Title & Summary */}
+                            <h3 className="font-display text-lg font-bold mb-3 leading-snug group-hover:text-primary transition-colors">
+                              {topic.title}
+                            </h3>
+                            <p className="text-muted-foreground text-sm leading-relaxed line-clamp-3 mb-6 flex-1">
+                              {topic.summary}
+                            </p>
+
+                            {/* Footer */}
+                            <div className="pt-4 border-t border-border/50 flex items-center gap-4 text-xs text-muted-foreground font-medium">
+                              {!!topic.hasInfographic && (
+                                <div className="flex items-center gap-1.5">
+                                  <BarChart3 className="w-4 h-4 text-muted-foreground/70" />
+                                  <span>Infographic</span>
+                                </div>
+                              )}
+                              {!!topic.hasArticle && (
+                                <div className="flex items-center gap-1.5">
+                                  <BookOpen className="w-4 h-4 text-muted-foreground/70" />
+                                  <span>Article</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    </motion.div>
+                  );
+                })}
               </div>
-              <h3 className="font-display text-xl font-semibold mb-2">No topics found</h3>
-              <p className="text-muted-foreground mb-4">
-                Try adjusting your filters
-              </p>
-              <Button onClick={() => {
-                setSelectedTime("This Week");
-                setSelectedSource("All Sources");
-              }}>
-                Reset Filters
-              </Button>
-            </motion.div>
+
+              {/* Empty State */}
+              {topics.length === 0 && (
+                <div className="text-center py-20">
+                  <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mx-auto mb-4">
+                    <Flame className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="font-display text-xl font-semibold mb-2">No trending topics found</h3>
+                  <p className="text-muted-foreground mb-4">Try adjusting your filters or check back later</p>
+                  <button
+                    onClick={() => { setTimeRange("This Week"); setSource("All Sources"); }}
+                    className="text-primary font-medium hover:underline"
+                  >
+                    Reset filters
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>

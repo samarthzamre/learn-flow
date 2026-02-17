@@ -1,40 +1,48 @@
 import { motion } from "framer-motion";
-import { 
-  Eye, 
-  TrendingUp, 
-  Clock,
+import {
   BarChart3,
-  ArrowUpRight,
-  ArrowDownRight
+  TrendingUp,
+  Eye,
+  FileText,
+  Loader2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AdminLayout } from "@/components/admin/AdminLayout";
-
-const overviewStats = [
-  { label: "Total Views", value: "45.2K", change: "+12.5%", positive: true, icon: Eye },
-  { label: "Avg. Read Time", value: "4:32", change: "+8.2%", positive: true, icon: Clock },
-  { label: "Completion Rate", value: "68%", change: "-2.1%", positive: false, icon: BarChart3 },
-  { label: "Trending Score", value: "87", change: "+15.3%", positive: true, icon: TrendingUp },
-];
-
-const topTopics = [
-  { title: "Large Language Models", views: "2,847", completion: "78%", trend: "+24%" },
-  { title: "React Server Components", views: "1,932", completion: "72%", trend: "+18%" },
-  { title: "Quantum Computing Basics", views: "1,456", completion: "65%", trend: "+12%" },
-  { title: "Startup Fundraising", views: "1,203", completion: "81%", trend: "+8%" },
-  { title: "Neural Networks Deep Dive", views: "987", completion: "59%", trend: "+5%" },
-];
-
-const categoryStats = [
-  { name: "AI & ML", views: "12.4K", percentage: 28 },
-  { name: "Programming", views: "10.8K", percentage: 24 },
-  { name: "Tech", views: "8.2K", percentage: 18 },
-  { name: "Business", views: "6.5K", percentage: 15 },
-  { name: "Science", views: "4.2K", percentage: 10 },
-  { name: "Finance", views: "3.1K", percentage: 7 },
-];
+import { useQuery } from "@tanstack/react-query";
+import { getStats, getTopics, getCategories } from "@/lib/api";
 
 const AdminAnalytics = () => {
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ["admin-stats"],
+    queryFn: getStats,
+  });
+
+  const { data: topics = [] } = useQuery({
+    queryKey: ["admin-topics"],
+    queryFn: () => getTopics(),
+  });
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ["admin-categories"],
+    queryFn: getCategories,
+  });
+
+  // Derive analytics from real data
+  const topPerformingTopics = [...topics]
+    .sort((a, b) => b.views - a.views)
+    .slice(0, 5);
+
+  const viewsByCategory = categories
+    .map((cat) => {
+      const catTopics = topics.filter((t) => t.categoryName === cat.name);
+      const totalViews = catTopics.reduce((sum, t) => sum + t.views, 0);
+      return { name: cat.name, views: totalViews, color: cat.color };
+    })
+    .filter((c) => c.views > 0)
+    .sort((a, b) => b.views - a.views);
+
+  const maxViews = viewsByCategory.length > 0 ? viewsByCategory[0].views : 1;
+
   return (
     <AdminLayout>
       <motion.div
@@ -44,51 +52,90 @@ const AdminAnalytics = () => {
       >
         {/* Header */}
         <div className="mb-6 md:mb-8">
-          <h1 className="font-display text-2xl md:text-3xl font-bold mb-1">Analytics</h1>
+          <div className="flex items-center gap-2 mb-1">
+            <BarChart3 className="w-6 h-6 text-primary" />
+            <h1 className="font-display text-2xl md:text-3xl font-bold">Analytics</h1>
+          </div>
           <p className="text-muted-foreground text-sm">
-            Track your platform's performance and engagement
+            Platform performance and engagement metrics
           </p>
         </div>
 
         {/* Overview Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 md:mb-8">
-          {overviewStats.map((stat, index) => {
-            const Icon = stat.icon;
-            return (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: index * 0.1 }}
-              >
-                <Card>
-                  <CardContent className="p-4 md:p-6">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                        <Icon className="w-5 h-5 text-primary" />
+        {statsLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 md:mb-8">
+            {[
+              { label: "Total Views", value: stats ? (stats.totalViews >= 1000 ? `${(stats.totalViews / 1000).toFixed(1)}K` : String(stats.totalViews)) : "0", icon: Eye },
+              { label: "Published Topics", value: String(stats?.publishedTopics || 0), icon: FileText },
+              { label: "Trending Topics", value: String(stats?.trendingTopics || 0), icon: TrendingUp },
+              { label: "Categories", value: String(stats?.totalCategories || 0), icon: BarChart3 },
+            ].map((stat, index) => {
+              const Icon = stat.icon;
+              return (
+                <motion.div
+                  key={stat.label}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: index * 0.1 }}
+                >
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <Icon className="w-4 h-4 text-primary" />
+                        </div>
+                        <span className="text-sm text-muted-foreground">{stat.label}</span>
                       </div>
-                      <div className={`flex items-center gap-1 text-xs font-medium ${
-                        stat.positive ? "text-emerald-600" : "text-red-500"
-                      }`}>
-                        {stat.positive ? (
-                          <ArrowUpRight className="w-3 h-3" />
-                        ) : (
-                          <ArrowDownRight className="w-3 h-3" />
-                        )}
-                        {stat.change}
-                      </div>
-                    </div>
-                    <p className="font-display text-2xl md:text-3xl font-bold mb-1">{stat.value}</p>
-                    <p className="text-muted-foreground text-xs md:text-sm">{stat.label}</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            );
-          })}
-        </div>
+                      <p className="font-display text-2xl font-bold">{stat.value}</p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
 
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* Top Topics */}
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Top Performing Topics */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-primary" />
+                  Top Performing Topics
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {topPerformingTopics.map((topic, index) => (
+                    <div key={topic.id} className="flex items-center gap-3">
+                      <span className="w-6 text-center font-bold text-primary">{index + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{topic.title}</p>
+                        <p className="text-xs text-muted-foreground">{topic.categoryName}</p>
+                      </div>
+                      <span className="text-sm font-medium">
+                        {topic.views >= 1000 ? `${(topic.views / 1000).toFixed(1)}K` : topic.views}
+                      </span>
+                    </div>
+                  ))}
+                  {topPerformingTopics.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">No topics yet</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Views by Category */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -96,58 +143,35 @@ const AdminAnalytics = () => {
           >
             <Card>
               <CardHeader className="pb-4">
-                <CardTitle className="text-lg">Top Performing Topics</CardTitle>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-primary" />
+                  Views by Category
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {topTopics.map((topic, index) => (
-                    <div key={topic.title} className="flex items-center gap-4">
-                      <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">
-                        {index + 1}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{topic.title}</p>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                          <span>{topic.views} views</span>
-                          <span>{topic.completion} completion</span>
-                        </div>
+                  {viewsByCategory.map((cat) => (
+                    <div key={cat.name}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium">{cat.name}</span>
+                        <span className="text-sm text-muted-foreground">
+                          {cat.views >= 1000 ? `${(cat.views / 1000).toFixed(1)}K` : cat.views} views
+                        </span>
                       </div>
-                      <span className="text-xs font-medium text-emerald-600">{topic.trend}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Category Distribution */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-          >
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg">Views by Category</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {categoryStats.map((category) => (
-                    <div key={category.name}>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium">{category.name}</span>
-                        <span className="text-sm text-muted-foreground">{category.views}</span>
-                      </div>
-                      <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${category.percentage}%` }}
-                          transition={{ duration: 0.8, delay: 0.5 }}
-                          className="h-full bg-primary rounded-full"
+                      <div className="w-full bg-secondary rounded-full h-2.5">
+                        <div
+                          className="h-2.5 rounded-full transition-all"
+                          style={{
+                            width: `${Math.max((cat.views / maxViews) * 100, 5)}%`,
+                            backgroundColor: cat.color,
+                          }}
                         />
                       </div>
                     </div>
                   ))}
+                  {viewsByCategory.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">No view data yet</p>
+                  )}
                 </div>
               </CardContent>
             </Card>

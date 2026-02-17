@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 
 export function CTASection() {
   return (
-    <section className="py-24">
+    <section className="py-16">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -17,21 +17,21 @@ export function CTASection() {
           {/* Decorative elements */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
           <div className="absolute bottom-0 left-0 w-64 h-64 bg-accent/30 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
-          
+
           <div className="relative z-10 text-center max-w-2xl mx-auto">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/20 text-primary-foreground mb-6">
               <Sparkles className="w-4 h-4" />
               <span className="text-sm font-medium">Start learning for free</span>
             </div>
-            
+
             <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-primary-foreground mb-6">
               Ready to transform how you learn?
             </h2>
-            
+
             <p className="text-primary-foreground/80 text-lg mb-8">
               Join thousands of learners who've discovered a better way to understand complex topics.
             </p>
-            
+
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Button
                 asChild

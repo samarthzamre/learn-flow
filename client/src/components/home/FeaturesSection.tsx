@@ -11,7 +11,7 @@ const features = [
   },
   {
     icon: Brain,
-    title: "AI-Summarized Concepts",
+    title: "Condensed Concepts",
     description: "Smart summaries that extract the essence of any topic in digestible card format.",
     color: "from-accent to-accent/60",
     bgColor: "bg-accent/10",
@@ -26,7 +26,7 @@ const features = [
   {
     icon: Zap,
     title: "Trending Topics",
-    description: "Stay ahead with AI-detected trending topics from tech, business, and beyond.",
+    description: "Stay ahead with curated trending topics from tech, business, and beyond.",
     color: "from-category-trending to-category-trending/60",
     bgColor: "bg-category-trending/10",
   },
@@ -48,7 +48,7 @@ const features = [
 
 export function FeaturesSection() {
   return (
-    <section className="py-24 bg-secondary/30">
+    <section className="py-16 bg-secondary/30">
       <div className="container mx-auto px-4">
         {/* Header */}
         <motion.div
@@ -62,7 +62,7 @@ export function FeaturesSection() {
             Learn the way your brain <span className="gradient-text">actually works</span>
           </h2>
           <p className="text-muted-foreground text-lg">
-            We combine visual learning, AI summaries, and deep content to create the ultimate learning experience.
+            We combine visual learning, smart summaries, and deep content to create the ultimate learning experience.
           </p>
         </motion.div>
 

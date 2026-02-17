@@ -20,13 +20,21 @@ const adminNavItems = [
   { href: "/admin/topics", label: "Manage Topics", icon: FileText },
   { href: "/admin/categories", label: "Categories", icon: Tags },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/admin/ai-research", label: "AI Research", icon: Sparkles },
+  { href: "/admin/research", label: "Topic Research", icon: Sparkles },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
+
+import { useQuery } from "@tanstack/react-query";
+import { getSettings } from "@/lib/api";
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const { data: settings } = useQuery({
+    queryKey: ["admin-settings"],
+    queryFn: getSettings,
+  });
 
   const NavContent = () => (
     <nav className="space-y-1">
@@ -46,8 +54,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             to={item.href}
             onClick={() => setMobileMenuOpen(false)}
             className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${isActive
-                ? "bg-primary text-primary-foreground shadow-md"
-                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+              ? "bg-primary text-primary-foreground shadow-md"
+              : "text-muted-foreground hover:bg-secondary hover:text-foreground"
               }`}
           >
             <Icon className="w-4 h-4" />
@@ -64,6 +72,21 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       <header className="fixed top-0 left-0 right-0 z-50 h-14 md:h-16 glass border-b border-border/50">
         <div className="flex items-center justify-between h-full px-4">
           <div className="flex items-center gap-4">
+            <Link to="/admin" className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center overflow-hidden">
+                {settings?.siteLogo ? (
+                  <img src={settings.siteLogo} alt="Logo" className="w-full h-full object-contain" />
+                ) : (
+                  <Sparkles className="w-4 h-4 text-primary-foreground" />
+                )}
+              </div>
+              <span className="font-display font-bold text-lg block">
+                {settings?.siteName || "LearnFlow Admin"}
+              </span>
+            </Link>
+          </div>
+
+          <div className="flex items-center gap-2">
             {/* Mobile Menu */}
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
@@ -78,16 +101,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 <NavContent />
               </SheetContent>
             </Sheet>
-
-            <Link to="/admin" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <span className="font-display font-bold text-lg hidden sm:block">LearnFlow Admin</span>
-            </Link>
           </div>
-
-          <div className="flex items-center gap-2" />
         </div>
       </header>
 

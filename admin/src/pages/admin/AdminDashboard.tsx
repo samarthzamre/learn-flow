@@ -1,34 +1,44 @@
 import { motion } from "framer-motion";
-import { 
-  FileText, 
-  Users, 
-  TrendingUp, 
+import {
+  FileText,
+  Users,
+  TrendingUp,
   Eye,
   Plus,
   ArrowUpRight,
   BarChart3,
-  Sparkles
+  Sparkles,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { useQuery } from "@tanstack/react-query";
+import { getStats, getTopics } from "@/lib/api";
 
-const stats = [
-  { label: "Total Topics", value: "156", icon: FileText, change: "+12 this week" },
-  { label: "Active Users", value: "2,847", icon: Users, change: "+18% this month" },
-  { label: "Trending Topics", value: "24", icon: TrendingUp, change: "Updated hourly" },
-  { label: "Total Views", value: "45.2K", icon: Eye, change: "+5.4K this week" },
-];
-
-const recentTopics = [
-  { id: "1", title: "Large Language Models", category: "AI & ML", views: "2.4K", status: "Published" },
-  { id: "2", title: "React Server Components", category: "Programming", views: "1.8K", status: "Published" },
-  { id: "3", title: "Quantum Computing Basics", category: "Science", views: "1.2K", status: "Draft" },
-  { id: "4", title: "Startup Fundraising", category: "Business", views: "980", status: "Published" },
-];
+const statIcons = [FileText, Eye, TrendingUp, BarChart3];
 
 const AdminDashboard = () => {
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ["admin-stats"],
+    queryFn: getStats,
+  });
+
+  const { data: recentTopics, isLoading: topicsLoading } = useQuery({
+    queryKey: ["admin-topics-recent"],
+    queryFn: () => getTopics(),
+  });
+
+  const statCards = stats
+    ? [
+      { label: "Total Topics", value: String(stats.totalTopics), icon: FileText, change: `${stats.publishedTopics} published` },
+      { label: "Total Views", value: stats.totalViews >= 1000 ? `${(stats.totalViews / 1000).toFixed(1)}K` : String(stats.totalViews), icon: Eye, change: "All time" },
+      { label: "Trending Topics", value: String(stats.trendingTopics), icon: TrendingUp, change: "Score ≥ 80" },
+      { label: "Categories", value: String(stats.totalCategories), icon: BarChart3, change: "Active" },
+    ]
+    : [];
+
   return (
     <AdminLayout>
       <motion.div
@@ -45,49 +55,55 @@ const AdminDashboard = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <Link to="/admin/ai-research">
+            <Link to="/admin/research">
               <Button variant="outline" className="gap-2">
                 <Sparkles className="w-4 h-4" />
-                <span className="hidden sm:inline">AI Research</span>
+                <span>Topic Research</span>
               </Button>
             </Link>
             <Link to="/admin/topics/new">
               <Button className="gap-2">
                 <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">New Topic</span>
+                <span>New Topic</span>
               </Button>
             </Link>
           </div>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 md:mb-8">
-          {stats.map((stat, index) => {
-            const Icon = stat.icon;
-            return (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: index * 0.1 }}
-              >
-                <Card>
-                  <CardContent className="p-4 md:p-6">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                        <Icon className="w-5 h-5 text-primary" />
+        {statsLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 md:mb-8">
+            {statCards.map((stat, index) => {
+              const Icon = stat.icon;
+              return (
+                <motion.div
+                  key={stat.label}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: index * 0.1 }}
+                >
+                  <Card>
+                    <CardContent className="p-4 md:p-6">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                          <Icon className="w-5 h-5 text-primary" />
+                        </div>
+                        <ArrowUpRight className="w-4 h-4 text-emerald-500" />
                       </div>
-                      <ArrowUpRight className="w-4 h-4 text-emerald-500" />
-                    </div>
-                    <p className="font-display text-2xl md:text-3xl font-bold mb-1">{stat.value}</p>
-                    <p className="text-muted-foreground text-xs md:text-sm">{stat.label}</p>
-                    <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">{stat.change}</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            );
-          })}
-        </div>
+                      <p className="font-display text-2xl md:text-3xl font-bold mb-1">{stat.value}</p>
+                      <p className="text-muted-foreground text-xs md:text-sm">{stat.label}</p>
+                      <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">{stat.change}</p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Recent Topics & Quick Actions */}
         <div className="grid lg:grid-cols-3 gap-6">
@@ -106,32 +122,37 @@ const AdminDashboard = () => {
                 </Link>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {recentTopics.map((topic) => (
-                    <div
-                      key={topic.id}
-                      className="flex items-center justify-between p-3 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{topic.title}</p>
-                        <p className="text-xs text-muted-foreground">{topic.category}</p>
-                      </div>
-                      <div className="flex items-center gap-3 ml-4">
-                        <div className="text-right hidden sm:block">
-                          <p className="text-sm font-medium">{topic.views}</p>
-                          <p className="text-xs text-muted-foreground">views</p>
+                {topicsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {(recentTopics || []).slice(0, 4).map((topic) => (
+                      <div
+                        key={topic.id}
+                        className="flex items-center justify-between p-3 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{topic.title}</p>
+                          <p className="text-xs text-muted-foreground">{topic.categoryName}</p>
                         </div>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          topic.status === "Published" 
-                            ? "bg-emerald-500/10 text-emerald-600" 
+                        <div className="flex items-center gap-3 ml-4">
+                          <div className="text-right hidden sm:block">
+                            <p className="text-sm font-medium">{topic.views >= 1000 ? `${(topic.views / 1000).toFixed(1)}K` : topic.views}</p>
+                            <p className="text-xs text-muted-foreground">views</p>
+                          </div>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${topic.status === "Published"
+                            ? "bg-emerald-500/10 text-emerald-600"
                             : "bg-amber-500/10 text-amber-600"
-                        }`}>
-                          {topic.status}
-                        </span>
+                            }`}>
+                            {topic.status}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </motion.div>
@@ -153,10 +174,10 @@ const AdminDashboard = () => {
                     Create New Topic
                   </Button>
                 </Link>
-                <Link to="/admin/ai-research" className="block">
+                <Link to="/admin/research" className="block">
                   <Button variant="outline" className="w-full justify-start gap-3">
                     <Sparkles className="w-4 h-4" />
-                    AI Topic Research
+                    Topic Research
                   </Button>
                 </Link>
                 <Link to="/admin/categories" className="block">
